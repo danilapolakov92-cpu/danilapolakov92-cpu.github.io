@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Расписание МИРЭА (API)</title>
+    <title>Расписание МИРЭА (API + Proxy)</title>
     <style>
         /* --- СТИЛИ (iOS Like) --- */
         :root {
@@ -113,7 +113,9 @@
     <script>
         // === КОНФИГУРАЦИЯ ===
         const GROUP_ID = '1_4896'; // ID твоей группы
-        const API_URL = `https://schedule-of.mirea.ru/schedule/api/search?match=${GROUP_ID}`;
+        // Используем публичный CORS-прокси (allorigins.win)
+        const TARGET_URL = `https://schedule-of.mirea.ru/schedule/api/search?match=${GROUP_ID}`;
+        const API_URL = `https://api.allorigins.win/get?url=${encodeURIComponent(TARGET_URL)}`;
         
         // Время пар (стандарт МИРЭА)
         const TIME_MAP = {
@@ -132,10 +134,13 @@
 
         async function loadSchedule() {
             try {
-                // 1. Идем в API
+                // 1. Идем в API через PROXY
                 const response = await fetch(API_URL);
                 if (!response.ok) throw new Error('Ошибка сети');
-                const json = await response.json();
+                
+                const proxyJson = await response.json();
+                // Распаковываем ответ прокси (он внутри .contents и это строка JSON)
+                const json = JSON.parse(proxyJson.contents);
 
                 if (json.data.length === 0) throw new Error('Группа не найдена');
                 
@@ -184,17 +189,7 @@
                         if (!lesson.weeks.includes(state.week)) return;
 
                         // 2. Фильтр по подгруппе
-                        // lesson.num_group: 0 (общая), 1, 2...
-                        // Если у урока указана подгруппа и она не совпадает с выбранной -> пропускаем
-                        // НО: Если урок общий (0), показываем всем
-                        // В API schedule-of поле может называться num_group или быть в названии
-                        // В текущем API поле num_group отсутствует в явном виде в поиске?
-                        // Проверим структуру. Обычно там массив weeks.
-                        
-                        // !!! Важно: В поиске schedule-of часто не отдают num_group явно. 
-                        // Но если отдают, то фильтруем. Если нет - показываем всё.
-                        // Доп проверка по названию "(1 п/г)"
-                        
+                        // Попытка определить подгруппу из названия, т.к. API часто не отдает num_group
                         let lessonSubgroup = 0;
                         if (lesson.name.match(/1\s*п\/г|подгруппа\s*1/i)) lessonSubgroup = 1;
                         if (lesson.name.match(/2\s*п\/г|подгруппа\s*2/i)) lessonSubgroup = 2;
@@ -259,11 +254,14 @@
         function updateUI() {
             // Кнопки недель
             for(let i=1; i<=4; i++) {
-                document.getElementById(`w${i}`).className = `toggle-btn ${state.week === i ? 'active' : ''}`;
+                const btn = document.getElementById(`w${i}`);
+                if(btn) btn.className = `toggle-btn ${state.week === i ? 'active' : ''}`;
             }
             // Кнопки групп
-            document.getElementById('g1').className = `toggle-btn ${state.group === 1 ? 'active' : ''}`;
-            document.getElementById('g2').className = `toggle-btn ${state.group === 2 ? 'active' : ''}`;
+            const g1 = document.getElementById('g1');
+            const g2 = document.getElementById('g2');
+            if(g1) g1.className = `toggle-btn ${state.group === 1 ? 'active' : ''}`;
+            if(g2) g2.className = `toggle-btn ${state.group === 2 ? 'active' : ''}`;
         }
 
         // Запуск
