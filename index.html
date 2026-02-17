@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Расписание МИРЭА (API + Proxy)</title>
+    <title>Расписание МИРЭА (Stable Proxy)</title>
     <style>
         /* --- СТИЛИ (iOS Like) --- */
         :root {
@@ -113,9 +113,9 @@
     <script>
         // === КОНФИГУРАЦИЯ ===
         const GROUP_ID = '1_4896'; // ID твоей группы
-        // Используем публичный CORS-прокси (allorigins.win)
         const TARGET_URL = `https://schedule-of.mirea.ru/schedule/api/search?match=${GROUP_ID}`;
-        const API_URL = `https://api.allorigins.win/get?url=${encodeURIComponent(TARGET_URL)}`;
+        // Используем более стабильный CORS-прокси (corsproxy.io)
+        const API_URL = `https://corsproxy.io/?${encodeURIComponent(TARGET_URL)}`;
         
         // Время пар (стандарт МИРЭА)
         const TIME_MAP = {
@@ -125,12 +125,8 @@
 
         const DAYS = ["", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
         
-        // Состояние приложения
-        let scheduleCache = null; // Данные от API
-        let state = {
-            week: 1,
-            group: 1
-        };
+        let scheduleCache = null; 
+        let state = { week: 1, group: 1 };
 
         async function loadSchedule() {
             try {
@@ -138,9 +134,8 @@
                 const response = await fetch(API_URL);
                 if (!response.ok) throw new Error('Ошибка сети');
                 
-                const proxyJson = await response.json();
-                // Распаковываем ответ прокси (он внутри .contents и это строка JSON)
-                const json = JSON.parse(proxyJson.contents);
+                // corsproxy.io отдает JSON напрямую
+                const json = await response.json();
 
                 if (json.data.length === 0) throw new Error('Группа не найдена');
                 
@@ -171,14 +166,12 @@
             let hasLessons = false;
             
             for (let dayNum = 1; dayNum <= 6; dayNum++) {
-                const dayLessons = scheduleCache[dayNum.toString()]; // "1", "2"...
+                const dayLessons = scheduleCache[dayNum.toString()]; 
                 if (!dayLessons) continue;
 
-                // Собираем HTML для пар этого дня
                 let dayHtml = '';
                 let dayHasLessons = false;
 
-                // Сортируем пары (API возвращает объект, где ключ - номер пары)
                 const sortedPairs = Object.keys(dayLessons).sort((a,b) => parseInt(a) - parseInt(b));
 
                 sortedPairs.forEach(pairNum => {
@@ -189,7 +182,6 @@
                         if (!lesson.weeks.includes(state.week)) return;
 
                         // 2. Фильтр по подгруппе
-                        // Попытка определить подгруппу из названия, т.к. API часто не отдает num_group
                         let lessonSubgroup = 0;
                         if (lesson.name.match(/1\s*п\/г|подгруппа\s*1/i)) lessonSubgroup = 1;
                         if (lesson.name.match(/2\s*п\/г|подгруппа\s*2/i)) lessonSubgroup = 2;
@@ -197,7 +189,7 @@
                         if (lessonSubgroup !== 0 && lessonSubgroup !== state.group) return;
 
 
-                        // Тип пары и стили
+                        // Тип пары
                         let typeClass = "type-pr";
                         let typeName = lesson.type;
                         if (typeName.includes("Лек")) typeClass = "type-lk";
@@ -252,19 +244,16 @@
         }
 
         function updateUI() {
-            // Кнопки недель
             for(let i=1; i<=4; i++) {
                 const btn = document.getElementById(`w${i}`);
                 if(btn) btn.className = `toggle-btn ${state.week === i ? 'active' : ''}`;
             }
-            // Кнопки групп
             const g1 = document.getElementById('g1');
             const g2 = document.getElementById('g2');
             if(g1) g1.className = `toggle-btn ${state.group === 1 ? 'active' : ''}`;
             if(g2) g2.className = `toggle-btn ${state.group === 2 ? 'active' : ''}`;
         }
 
-        // Запуск
         loadSchedule();
 
     </script>
