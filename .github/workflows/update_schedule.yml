@@ -24,18 +24,18 @@ jobs:
       - name: Build Schedule
         run: python build.py
 
-- name: Commit and Push
-  run: |
-    git config --global user.name 'Schedule Bot'
-    git config --global user.email 'bot@noreply.github.com'
-
-    ls -la
-
-    if [ -f index.html ]; then
-      git add index.html
-      git diff --cached --quiet || git commit -m "Auto-update schedule"
-      git push
-    else
-      echo "index.html не найден, пропускаю коммит"
-    fi
+      - name: Commit and Push
+        run: |
+          git config --global user.name 'Schedule Bot'
+          git config --global user.email 'bot@noreply.github.com'
+      
+          ls -la
+      
+          if [ -f index.html ]; then
+            git add index.html
+            git diff --cached --quiet || git commit -m "Auto-update schedule"
+            git push
+          else
+            echo "index.html не найден, пропускаю коммит"
+          fi
 
