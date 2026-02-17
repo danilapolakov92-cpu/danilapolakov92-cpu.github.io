@@ -1,0 +1,39 @@
+name: Update Schedule JSON
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # Каждое утро в 3:00 UTC (6:00 МСК)
+  workflow_dispatch:    # Кнопка ручного запуска
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Разрешаем пушить в репо
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Download JSON
+        run: |
+          # Скачиваем JSON напрямую с API МИРЭА
+          # Группа ПКБО-01-24 (ID 1_4896)
+          curl -L "https://schedule-of.mirea.ru/schedule/api/search?match=1_4896" -o schedule.json
+
+      - name: Check if valid JSON
+        run: |
+          # Простейшая проверка, что файл не пустой и похож на JSON
+          if ! grep -q "schedule" schedule.json; then
+            echo "Error: Invalid JSON received"
+            exit 1
+          fi
+
+      - name: Commit and Push
+        run: |
+          git config --global user.name 'Schedule Bot'
+          git config --global user.email 'bot@noreply.github.com'
+          
+          # Если есть изменения, коммитим
+          git add schedule.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update schedule.json [skip ci]" && git push)
