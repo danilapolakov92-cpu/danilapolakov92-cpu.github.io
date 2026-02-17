@@ -128,33 +128,40 @@
         let scheduleCache = null; 
         let state = { week: 1, group: 1 };
 
-        async function loadSchedule() {
-            try {
-                // 1. Идем в API через PROXY
-                const response = await fetch(API_URL);
-                if (!response.ok) throw new Error('Ошибка сети');
-                
-                // corsproxy.io отдает JSON напрямую
-                const json = await response.json();
+// === КОНФИГУРАЦИЯ ===
+// Мы читаем файл, который лежит рядом с index.html
+const API_URL = './schedule.json'; 
 
-                if (json.data.length === 0) throw new Error('Группа не найдена');
-                
-                // 2. Сохраняем данные
-                scheduleCache = json.data[0].schedule; 
-                
-                // 3. Рендерим
-                render();
+// ... (остальные константы без изменений)
 
-            } catch (err) {
-                document.getElementById('scheduleRoot').innerHTML = `
-                    <div class="error-state">
-                        <strong>Ошибка загрузки</strong><br>
-                        ${err.message}<br><br>
-                        <button onclick="location.reload()" style="padding:8px 16px; border:none; background:#D32F2F; color:white; border-radius:8px; cursor:pointer;">Повторить</button>
-                    </div>`;
-                console.error(err);
-            }
-        }
+async function loadSchedule() {
+    try {
+        // Добавляем timestamp, чтобы браузер не кешировал файл намертво
+        const response = await fetch(API_URL + '?t=' + new Date().getTime());
+        if (!response.ok) throw new Error('Файл расписания не найден');
+        
+        const json = await response.json();
+
+        // Проверяем структуру (в файле может лежать сразу массив данных или структура API)
+        // Наш скрипт сохранения будет класть туда полный ответ API
+        let scheduleData = json.data ? json.data[0].schedule : json;
+
+        if (!scheduleData) throw new Error('Некорректный формат данных');
+        
+        scheduleCache = scheduleData; 
+        render();
+
+    } catch (err) {
+        document.getElementById('scheduleRoot').innerHTML = `
+            <div class="error-state">
+                <strong>Не удалось загрузить расписание</strong><br>
+                ${err.message}<br><br>
+                <button onclick="location.reload()" style="...">Повторить</button>
+            </div>`;
+        console.error(err);
+    }
+}
+
 
         function render() {
             const container = document.getElementById('scheduleRoot');
